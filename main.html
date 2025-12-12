@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>BirdWatcher</title>
+
+	<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+		integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+
+	<style>
+		html,
+		body {
+			margin: 0;
+			padding: 0;
+			font-family: Arial, sans-serif;
+		}
+
+
+		#reset {
+			background-color: red;
+			color: white;
+			border: 1px solid darkred;
+			border-radius: 4px;
+			padding: 5px 10px;
+			display: inline-block;
+		}
+
+		#reset:hover {
+			background-color: darkred;
+		}
+
+		#recenter {
+			background-color: green;
+			color: white;
+			border: 1px solid darkgreen;
+			border-radius: 4px;
+			padding: 5px 10px;
+			display: inline-block;
+		}
+
+		#recenter:hover {
+			background-color: darkgreen;
+		}
+
+		#logCamera {
+			background-color: blue;
+			color: white;
+			border: 1px solid darkblue;
+			border-radius: 4px;
+			padding: 5px 10px;
+			display: inline-block;
+		}
+
+		#logCamera:hover {
+			background-color: darkblue;
+		}
+
+		#exportDropdown {
+			background-color: orange;
+			color: white;
+			border: 1px solid darkorange;
+			border-radius: 4px;
+			padding: 5px 10px;
+			display: inline-block;
+		}
+
+		#exportDropdown:hover {
+			background-color: darkorange;
+		}
+
+		#map {
+			height: calc(100vh - 50px);
+		}
+
+
+		header {
+			background-color: #f8f9fa;
+			padding: 10px;
+			border-bottom: 1px solid #e0e0e0;
+		}
+
+		nav ul {
+			list-style-type: none;
+			margin: 0;
+			padding: 0;
+			display: flex;
+			gap: 10px;
+		}
+	</style>
+
+
+</head>
+
+<body>
+	<header>
+		<nav>
+			<ul>
+				<li><button id="reset">Reset Data</button></li>
+				<li><button id="recenter">Recenter Map</button></li>
+				<li><button id="logCamera">Log Camera</button></li>
+				<!-- Button with dropdown to select either JSON or CSV -->
+				<li>
+					<select name="exportDropdown" id="exportDropdown">
+						<option value="json"><button id="exportAsJson">Export as JSON</button></option>
+						<option value="csv"><button id="exportAsCsv">Export as CSV</button></option>
+					</select>
+				</li>
+			</ul>
+		</nav>
+	</header>
+	<main>
+		<div id="map">
+			<!-- Map will be rendered here -->
+		</div>
+	</main>
+
+	<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+		integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+	<!-- Get page setup up to zooming into user's location and get speed/direction -->
+	<script>
+		// Get location and render map if map not already rendered
+		document.addEventListener("DOMContentLoaded", function () {
+			// Render map
+			if (navigator.geolocation) {
+				navigator.geolocation.getCurrentPosition(function (position) {
+					console.info('Latitude: ' + position.coords.latitude +
+						', Longitude: ' + position.coords.longitude + ', Speed: ' + position.coords.speed +
+						', Direction: ' + position.coords.heading
+					);
+					if (!map) {
+						var map = L.map('map').setView([position.coords.latitude, position.coords.longitude], 16);
+						L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+							attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+						}).addTo(map);
+					}
+				}, function (error) {
+					console.error('Error occurred. Error code: ' + error.code);
+				});
+			} else {
+				if (!map) {
+					var map = L.map('map').setView([39.0316783, -86.6741465], 16);
+					L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+						attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+					}).addTo(map);
+				}
+				console.error('Geolocation is not supported by this browser.');
+				alert('Geolocation is not supported by your browser or not working. Please double check your browser or operating system settings, and enable location services.');
+			}
+
+			// Add location icon to where the user is
+			function revealPosition(position) {
+				var userMarker = L.marker([position.coords.latitude, position.coords.longitude]).addTo(map);
+			}
+
+
+		});
+
+		document.getElementById('recenter').addEventListener('click', function () {
+			// Logic to recenter the map goes here
+
+			// get lat and lon
+			navigator.geolocation.getCurrentPosition(function (position) {
+				map.setView([position.coords.latitude, position.coords.longitude], 16);
+			}, function (error) {
+				alert('Unable to retrieve your location for recentering.');
+			});
+			console.log('Map has been recentered.');
+		});
+
+
+		// Add geolocation permission button to ask for location permissions
+		const geoBtn = document.createElement("button");
+		geoBtn.textContent = "Enable Geolocation";
+		geoBtn.style.position = "absolute";
+		geoBtn.style.top = "10px";
+		geoBtn.style.right = "10px";
+		document.body.appendChild(geoBtn);
+
+		// definately not straight from MDN
+		function handlePermission() {
+			navigator.permissions.query({ name: "geolocation" }).then((result) => {
+				if (result.state === "granted") {
+					report(result.state);
+					geoBtn.style.display = "none";
+				} else if (result.state === "prompt") {
+					report(result.state);
+					geoBtn.style.display = "none";
+					navigator.geolocation.getCurrentPosition(
+						revealPosition,
+						positionDenied,
+						geoSettings,
+					);
+				} else if (result.state === "denied") {
+					report(result.state);
+					geoBtn.style.display = "inline";
+				}
+				result.addEventListener("change", () => {
+					report(result.state);
+				});
+			});
+		}
+
+		function report(state) {
+			console.info(`Permission ${state}`);
+		}
+
+		handlePermission();
+	</script>
+	<script>
+		// Save location, speed, and direction to localStorage variable so we can export as CSV or JSON later
+
+
+		// Define localStorage keys
+		const CAMERA_LOG_KEY = 'birdwatcher_camera_log';
+		const DATA_KEY = 'birdwatcher_data';
+
+		// Initialize localStorage if not already present
+		if (!localStorage.getItem(CAMERA_LOG_KEY)) {
+			localStorage.setItem(CAMERA_LOG_KEY, JSON.stringify([]));
+		}
+		if (!localStorage.getItem(DATA_KEY)) {
+			localStorage.setItem(DATA_KEY, JSON.stringify([]));
+		}
+
+
+
+		// Manage exports (thanks CodePen user jh3y for CSV export logic)
+		document.getElementById('exportDropdown').addEventListener('change', function () {
+			const selection = this.value;
+			const cameraLog = JSON.parse(localStorage.getItem(CAMERA_LOG_KEY));
+			if (selection === 'json') {
+				const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(cameraLog, null, 2));
+				const downloadAnchorNode = document.createElement('a');
+				downloadAnchorNode.setAttribute("href", dataStr);
+				downloadAnchorNode.setAttribute("download", "camera_log.json");
+				document.body.appendChild(downloadAnchorNode);
+				downloadAnchorNode.click();
+				downloadAnchorNode.remove();
+			} else if (selection === 'csv') {
+				let csvContent = "data:text/csv;charset=utf-8,";
+				csvContent += "Timestamp,Latitude,Longitude,Speed(m/s),Direction(degrees)\n";
+				cameraLog.forEach(entry => {
+					csvContent += `${entry.timestamp},${entry.latitude},${entry.longitude},${entry.speed},${entry.direction}\n`;
+				});
+				const encodedUri = encodeURI(csvContent);
+				const downloadAnchorNode = document.createElement('a');
+				downloadAnchorNode.setAttribute("href", encodedUri);
+				downloadAnchorNode.setAttribute("download", "camera_log.csv");
+				document.body.appendChild(downloadAnchorNode);
+				downloadAnchorNode.click();
+				downloadAnchorNode.remove();
+			}
+		});
+
+
+		// Log camera data with speed and direction
+		document.getElementById('logCamera').addEventListener('click', function () {
+			// Logic to log camera data goes here
+			console.log('Camera data logged at ' + new Date().toLocaleString() + ' while moving in the ' + navigator.geolocation.direction + ' direction at ' + navigator.geolocation.speed + ' m/s.');
+			navigator.geolocation.getCurrentPosition(function (position) {
+				const cameraLog = JSON.parse(localStorage.getItem(CAMERA_LOG_KEY));
+				cameraLog.push({
+					timestamp: new Date().toISOString(),
+					latitude: position.coords.latitude,
+					longitude: position.coords.longitude,
+					speed: position.coords.speed,
+					direction: position.coords.heading
+				});
+				localStorage.setItem(CAMERA_LOG_KEY, JSON.stringify(cameraLog));
+				console.log('Camera data saved to localStorage.');
+				// Add marker to map with the coordinates where the camera data was logged
+				var cameraMarker = L.marker([position.coords.latitude, position.coords.longitude]).addTo(map);
+				var popupContent = `Camera logged here at ${new Date().toLocaleString()}<br>Speed: ${position.coords.speed} m/s<br>Direction: ${position.coords.heading}°`;	
+				cameraMarker.bindPopup(popupContent);
+			}, function (error) {
+				alert('Unable to retrieve your location for logging camera data.');
+			});
+		});
+
+		// Reset data with confirmation prompt
+		document.getElementById('reset').addEventListener('click', function () {
+			if (confirm('Are you sure you want to reset all data? This action cannot be undone.')) {
+				// Logic to reset data goes here
+				console.warn('Data has been reset.');
+			}
+		});
+Z
+	</script>
+
+</body>
+
+</html>
