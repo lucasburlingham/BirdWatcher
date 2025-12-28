@@ -44,7 +44,7 @@
 			background-color: darkgreen;
 		}
 
-		#logCamera {
+		button#logCamera {
 			background-color: blue;
 			color: white;
 			border: 1px solid darkblue;
@@ -53,11 +53,20 @@
 			display: inline-block;
 		}
 
-		#logCamera:hover {
+		button#logCamera:hover {
 			background-color: darkblue;
 		}
 
-		#exportDropdown {
+		button#manualLocation {
+			background-color: purple;
+			color: white;
+			border: 1px solid indigo;
+			border-radius: 4px;
+			padding: 5px 10px;
+			display: inline-block;
+		}
+
+		select#exportDropdown {
 			background-color: orange;
 			color: white;
 			border: 1px solid darkorange;
@@ -100,6 +109,7 @@
 				<li><button id="reset">Reset Data</button></li>
 				<li><button id="recenter">Recenter Map</button></li>
 				<li><button id="logCamera">Log Camera</button></li>
+				<li><button id="manualLocation">Set Manual Location</button></li>
 				<!-- Button with dropdown to select either JSON or CSV -->
 				<li>
 					<select name="exportDropdown" id="exportDropdown">
@@ -170,6 +180,35 @@
 		});
 
 
+		document.getElementById('manualLocation').addEventListener('click', function () {
+
+			// change the text of the button to indicate manual location mode is active
+			this.textContent = 'Confirm Manual Location';
+			// allow users to center themselves on the map to set a manual location
+			// show icon on the center of the map and get the coordinates of that location
+			var center = map.getCenter();
+			var manualMarker = L.marker([center.lat, center.lng]).addTo(map);
+			var popupContent = `Manual location set here at ${new Date().toLocaleString()}<br>Latitude: ${center.lat}<br>Longitude: ${center.lng}`;
+			manualMarker.bindPopup(popupContent).openPopup();
+			console.log('Manual location set at Latitude: ' + center.lat + ', Longitude: ' + center.lng);
+
+			// listen for map movement and update marker position
+			map.on('move', function () {
+				var newCenter = map.getCenter();
+				manualMarker.setLatLng([newCenter.lat, newCenter.lng]);
+			});
+
+			// once the user clicks the button to confirm, remove the marker and reset button text
+			this.addEventListener('click', function confirmManualLocation() {
+				this.textContent = 'Set Manual Location';
+				map.off('move');
+				console.log('Manual location confirmed at Latitude: ' + manualMarker.getLatLng().lat + ', Longitude: ' + manualMarker.getLatLng().lng);
+			}, {
+				once: true
+			});
+
+		});
+
 		// Add geolocation permission button to ask for location permissions
 		const geoBtn = document.createElement("button");
 		geoBtn.textContent = "Enable Geolocation";
@@ -207,6 +246,8 @@
 		}
 
 		handlePermission();
+
+
 	</script>
 	<script>
 		// Save location, speed, and direction to localStorage variable so we can export as CSV or JSON later
@@ -272,7 +313,7 @@
 				console.log('Camera data saved to localStorage.');
 				// Add marker to map with the coordinates where the camera data was logged
 				var cameraMarker = L.marker([position.coords.latitude, position.coords.longitude]).addTo(map);
-				var popupContent = `Camera logged here at ${new Date().toLocaleString()}<br>Speed: ${position.coords.speed} m/s<br>Direction: ${position.coords.heading}°`;	
+				var popupContent = `Camera logged here at ${new Date().toLocaleString()}<br>Speed: ${position.coords.speed} m/s<br>Direction: ${position.coords.heading}°`;
 				cameraMarker.bindPopup(popupContent);
 			}, function (error) {
 				alert('Unable to retrieve your location for logging camera data.');
@@ -286,7 +327,7 @@
 				console.warn('Data has been reset.');
 			}
 		});
-Z
+		Z
 	</script>
 
 </body>
